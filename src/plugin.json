@@ -66,6 +66,13 @@
       "defaultNav": false
     },
     {
+      "type": "dashboard",
+      "name": "Docker jobs overview",
+      "path": "dashboards/overview.json",
+      "role": "Viewer",
+      "addToNav": true
+    },
+    {
       "type": "page",
       "icon": "cog",
       "name": "Configuration",
