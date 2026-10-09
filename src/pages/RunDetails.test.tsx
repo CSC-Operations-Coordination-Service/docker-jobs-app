@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { cancelRun, getRun, rerunRun } from '../api';
 import { AppSettings } from '../settings';
 import { aRun, anAttempt } from '../test-fixtures';
-import { asRole } from '../test-utils';
+import { asRole, fetchError } from '../test-utils';
 import { RunDetails } from './RunDetails';
 
 jest.mock('../api', () => ({
@@ -88,5 +88,51 @@ describe('RunDetails', () => {
 
     expect(await screen.findByText('node-1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Rerun' })).not.toBeInTheDocument();
+  });
+
+  it('re-reads the run when the list says it changed', async () => {
+    mocked(getRun).mockResolvedValueOnce(aRun({ state: 'running', finished_at: null }));
+    mocked(getRun).mockResolvedValueOnce(aRun({ state: 'failed' }));
+    const wrap = (version: string) => (
+      <AppSettings.Provider value={{ backendUrl: 'http://b' }}>
+        <RunDetails runId={7} version={version} />
+      </AppSettings.Provider>
+    );
+    const { rerender } = render(wrap('running'));
+    expect(await screen.findByRole('button', { name: 'Cancel run' })).toBeInTheDocument();
+
+    rerender(wrap('failed'));
+
+    expect(await screen.findByRole('button', { name: 'Rerun' })).toBeInTheDocument();
+    expect(getRun).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-reads the run after an action is refused', async () => {
+    mocked(getRun).mockResolvedValueOnce(aRun({ state: 'running', finished_at: null }));
+    mocked(getRun).mockResolvedValueOnce(aRun({ state: 'failed' }));
+    mocked(cancelRun).mockRejectedValue(fetchError({ detail: 'run 7 is failed: there is nothing to cancel' }, 409));
+    renderDetails();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
+    const buttons = screen.getAllByRole('button', { name: 'Cancel run' });
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    expect(await screen.findByText('run 7 is failed: there is nothing to cancel')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Rerun' })).toBeInTheDocument();
+  });
+
+  it('shows who made each attempt and why', async () => {
+    mocked(getRun).mockResolvedValue(
+      aRun({
+        attempts: [
+          anAttempt(),
+          anAttempt({ try_number: 2, reason: 'rerun', requested_by: 'operator', note: 'upstream fixed' }),
+        ],
+      })
+    );
+    renderDetails();
+
+    expect(await screen.findByText('operator')).toBeInTheDocument();
+    expect(screen.getByText('upstream fixed')).toBeInTheDocument();
   });
 });

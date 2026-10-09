@@ -143,7 +143,13 @@ export function Runs() {
           columns={columns}
           data={runs}
           getRowId={(run: Run) => String(run.id)}
-          renderExpandedRow={(run: Run) => <RunDetails runId={run.id} onChanged={load} />}
+          renderExpandedRow={(run: Run) => (
+            <RunDetails
+              runId={run.id}
+              version={`${run.state}/${run.try_number}/${run.last_attempt?.state ?? ''}`}
+              onChanged={load}
+            />
+          )}
         />
 
         <Stack gap={1} justifyContent="flex-end">

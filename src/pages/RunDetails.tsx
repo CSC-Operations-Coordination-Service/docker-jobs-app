@@ -28,37 +28,46 @@ type Cell = CellProps<Attempt>;
 
 interface Props {
   runId: number;
+  /**
+   * What the list last saw of the run (its state, tries...): when it changes,
+   * the details are read again, so they never contradict the row above them.
+   */
+  version?: string;
   /** after a rerun or a cancel, so a list showing the run can reload */
   onChanged?: () => void;
 }
 
 /** One run: its attempts, where their logs are, and -- for Editors -- rerun or cancel. */
-export function RunDetails({ runId, onChanged }: Props) {
+export function RunDetails({ runId, version, onChanged }: Props) {
   const styles = useStyles2(getStyles);
   const { lokiDatasourceUid } = useAppSettings();
   const editable = canEdit();
   const [run, setRun] = useState<Run>();
-  const [error, setError] = useState<string>();
+  // two errors: reading the run again must not wipe out why an action failed
+  const [loadError, setLoadError] = useState<string>();
+  const [actionError, setActionError] = useState<string>();
   const [action, setAction] = useState<'rerun' | 'cancel'>();
   const [note, setNote] = useState('');
 
   const load = useCallback(async () => {
     try {
       setRun(await getRun(runId));
-      setError(undefined);
+      setLoadError(undefined);
     } catch (err) {
-      setError(errorMessage(err));
+      setLoadError(errorMessage(err));
     }
   }, [runId]);
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, version]);
 
   const columns = useMemo<Array<Column<Attempt>>>(
     () => [
       { id: 'try_number', header: 'Try' },
       { id: 'reason', header: 'Why' },
+      { id: 'requested_by', header: 'By', cell: ({ row }: Cell) => row.original.requested_by || '–' },
+      { id: 'note', header: 'Note', cell: ({ row }: Cell) => <Truncated text={row.original.note} maxWidth={240} /> },
       {
         id: 'state',
         header: 'State',
@@ -102,7 +111,11 @@ export function RunDetails({ runId, onChanged }: Props) {
   );
 
   if (!run) {
-    return error ? <Alert title="Cannot load the run">{error}</Alert> : <LoadingPlaceholder text="Loading..." />;
+    return loadError ? (
+      <Alert title="Cannot load the run">{loadError}</Alert>
+    ) : (
+      <LoadingPlaceholder text="Loading..." />
+    );
   }
 
   const confirm = async () => {
@@ -111,10 +124,12 @@ export function RunDetails({ runId, onChanged }: Props) {
     try {
       setRun(what === 'rerun' ? await rerunRun(run.id, note) : await cancelRun(run.id, note));
       setNote('');
-      setError(undefined);
+      setActionError(undefined);
       onChanged?.();
     } catch (err) {
-      setError(errorMessage(err));
+      setActionError(errorMessage(err));
+      // refused: the run is not what this page showed, read it again
+      load();
     }
   };
 
@@ -123,9 +138,9 @@ export function RunDetails({ runId, onChanged }: Props) {
 
   return (
     <div className={styles.details}>
-      {error && (
-        <Alert severity="error" title={`Run ${run.id}`} onRemove={() => setError(undefined)}>
-          {error}
+      {actionError && (
+        <Alert severity="error" title={`Run ${run.id}`} onRemove={() => setActionError(undefined)}>
+          {actionError}
         </Alert>
       )}
       <dl>

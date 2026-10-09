@@ -75,6 +75,17 @@ describe('splitCommandLine', () => {
     expect(() => splitCommandLine('--start {{ data_interval_start')).toThrow('unclosed template {{');
   });
 
+  it('joins lines continued with a backslash, as a shell does', () => {
+    expect(splitCommandLine('python main.py \\\n  --start {{ x }} \\\r\n --end y')).toEqual([
+      'python',
+      'main.py',
+      '--start',
+      '{{ x }}',
+      '--end',
+      'y',
+    ]);
+  });
+
   it('gives nothing for blank text', () => {
     expect(splitCommandLine('   ')).toEqual([]);
   });

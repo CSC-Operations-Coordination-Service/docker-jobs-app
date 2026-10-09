@@ -7,15 +7,17 @@ import {
   CellProps,
   Column,
   ConfirmModal,
+  Field,
   InlineField,
   InlineSwitch,
+  Input,
   InteractiveTable,
   LinkButton,
   Stack,
   TextLink,
 } from '@grafana/ui';
 
-import { Job, Run, deleteJob, errorMessage, listJobs, listRuns, triggerJob, updateJob } from '../api';
+import { Job, Run, deleteJob, errorMessage, getJob, listJobs, listRuns, triggerJob, updateJob } from '../api';
 import { ROUTES, prefixRoute } from '../constants';
 import { canEdit, formatDate, formatInterval, jobToSpec, stateColor } from '../utils';
 
@@ -35,11 +37,15 @@ export const runsRoute = (name: string) => `${prefixRoute(ROUTES.Runs)}?job=${en
 export function Jobs() {
   const editable = canEdit();
   const [rows, setRows] = useState<Row[]>([]);
-  const [error, setError] = useState<string>();
+  // two errors: a reload must not wipe out why an action failed
+  const [loadError, setLoadError] = useState<string>();
+  const [actionError, setActionError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [pending, setPending] = useState<Pending>();
+  const [runDate, setRunDate] = useState('');
+  const [runNote, setRunNote] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,9 +60,9 @@ export function Jobs() {
         )
       );
       setRows(jobs.map((job, index) => ({ ...job, lastRun: lastRuns[index] })));
-      setError(undefined);
+      setLoadError(undefined);
     } catch (err) {
-      setError(errorMessage(err));
+      setLoadError(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -75,9 +81,10 @@ export function Jobs() {
     async (what: () => Promise<string>) => {
       try {
         setNotice(await what());
-        setError(undefined);
+        setActionError(undefined);
       } catch (err) {
-        setError(errorMessage(err));
+        setNotice(undefined);
+        setActionError(errorMessage(err));
       }
       load();
     },
@@ -87,11 +94,20 @@ export function Jobs() {
   const toggle = useCallback(
     (job: Row) =>
       act(async () => {
-        await updateJob(job.name, { ...jobToSpec(job), enabled: !job.enabled });
-        return `${job.name} ${job.enabled ? 'disabled' : 'enabled'}`;
+        // PUT replaces the whole definition: start from the stored one, not
+        // from a row that may predate someone else's edit
+        const fresh = await getJob(job.name);
+        await updateJob(job.name, { ...jobToSpec(fresh), enabled: !fresh.enabled });
+        return `${job.name} ${fresh.enabled ? 'disabled' : 'enabled'}`;
       }),
     [act]
   );
+
+  const ask = (action: Pending['action'], job: Row) => {
+    setRunDate('');
+    setRunNote('');
+    setPending({ action, job });
+  };
 
   const confirm = () => {
     if (!pending) {
@@ -104,7 +120,7 @@ export function Jobs() {
         await deleteJob(job.name);
         return `${job.name} deleted, with its runs`;
       }
-      const run = await triggerJob(job.name);
+      const run = await triggerJob(job.name, runDate.trim() || undefined, runNote.trim());
       return `Run ${run.id} of ${job.name} queued: ${formatInterval(run.data_interval_start, run.data_interval_end)}`;
     });
   };
@@ -160,7 +176,7 @@ export function Jobs() {
                   size="sm"
                   variant="secondary"
                   disabled={!row.original.enabled}
-                  onClick={() => setPending({ action: 'run', job: row.original })}
+                  onClick={() => ask('run', row.original)}
                 >
                   Run now
                 </Button>
@@ -173,7 +189,7 @@ export function Jobs() {
                   fill="text"
                   icon="trash-alt"
                   aria-label={`Delete ${row.original.name}`}
-                  onClick={() => setPending({ action: 'delete', job: row.original })}
+                  onClick={() => ask('delete', row.original)}
                 />
               </>
             )}
@@ -203,9 +219,14 @@ export function Jobs() {
           )}
         </Stack>
 
-        {error && (
-          <Alert severity="error" title="Docker jobs" onRemove={() => setError(undefined)}>
-            {error}
+        {loadError && (
+          <Alert severity="error" title="Cannot load the jobs">
+            {loadError}
+          </Alert>
+        )}
+        {actionError && (
+          <Alert severity="error" title="Not done" onRemove={() => setActionError(undefined)}>
+            {actionError}
           </Alert>
         )}
         {notice && (
@@ -221,9 +242,25 @@ export function Jobs() {
         isOpen={pending !== undefined}
         title={pending?.action === 'delete' ? `Delete ${pending.job.name}?` : `Run ${pending?.job.name} now?`}
         body={
-          pending?.action === 'delete'
-            ? 'The job and every run of it are deleted. Its logs stay in Loki.'
-            : 'A manual run of its latest ended interval, recorded under your name.'
+          pending?.action === 'delete' ? (
+            'The job and every run of it are deleted. Its logs stay in Loki.'
+          ) : (
+            <Stack direction="column" gap={1}>
+              A manual run, recorded under your name: of the interval a date falls in -- one never run, say -- or of the
+              latest ended interval.
+              <Field label="A date in the interval" description="ISO 8601 with a timezone; empty: the latest ended">
+                <Input
+                  id="run-now-date"
+                  placeholder="2026-10-09T00:30:00Z"
+                  value={runDate}
+                  onChange={(event) => setRunDate(event.currentTarget.value)}
+                />
+              </Field>
+              <Field label="Note" description="Why: recorded with your name">
+                <Input id="run-now-note" value={runNote} onChange={(event) => setRunNote(event.currentTarget.value)} />
+              </Field>
+            </Stack>
+          )
         }
         confirmText={pending?.action === 'delete' ? 'Delete' : 'Run'}
         onConfirm={confirm}

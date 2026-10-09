@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
-import { deleteJob, listJobs, listRuns, triggerJob, updateJob } from '../api';
+import { deleteJob, getJob, listJobs, listRuns, triggerJob, updateJob } from '../api';
 import { aJob, aRun } from '../test-fixtures';
 import { asRole, fetchError, renderAt } from '../test-utils';
 import { jobToSpec } from '../utils';
@@ -14,6 +14,7 @@ jest.mock('@grafana/runtime', () => ({
 
 jest.mock('../api', () => ({
   ...jest.requireActual('../api'),
+  getJob: jest.fn(),
   listJobs: jest.fn(),
   listRuns: jest.fn(),
   triggerJob: jest.fn(),
@@ -28,6 +29,7 @@ describe('Jobs', () => {
     jest.clearAllMocks();
     mocked(listJobs).mockResolvedValue([aJob()]);
     mocked(listRuns).mockResolvedValue([aRun({ state: 'failed' })]);
+    mocked(getJob).mockResolvedValue(aJob());
     asRole('Editor');
   });
 
@@ -74,7 +76,7 @@ describe('Jobs', () => {
     expect(triggerJob).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
-    await waitFor(() => expect(triggerJob).toHaveBeenCalledWith('collect'));
+    await waitFor(() => expect(triggerJob).toHaveBeenCalledWith('collect', undefined, ''));
     expect(await screen.findByText('Run 12 of collect queued: 2026-10-09 00:00 → 01:00')).toBeInTheDocument();
   });
 
@@ -93,5 +95,47 @@ describe('Jobs', () => {
     renderAt(<Jobs />);
 
     expect(await screen.findByText('plugin route match not found')).toBeInTheDocument();
+  });
+
+  it("keeps an action's error visible after the list reloads", async () => {
+    const refusal = "job 'collect' has 1 attempt(s) running: cancel them, or wait";
+    mocked(deleteJob).mockRejectedValue(fetchError({ detail: refusal }, 409));
+    renderAt(<Jobs />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete collect' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByText(refusal)).toBeInTheDocument();
+    await waitFor(() => expect(listRuns).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText(refusal)).toBeInTheDocument();
+  });
+
+  it('disables a job from a fresh copy of its definition, not the listed one', async () => {
+    mocked(getJob).mockResolvedValue(aJob({ image: 'maas-collector:3.11.0' }));
+    mocked(updateJob).mockResolvedValue(aJob({ enabled: false }));
+    renderAt(<Jobs />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Disable' }));
+
+    await waitFor(() =>
+      expect(updateJob).toHaveBeenCalledWith('collect', {
+        ...jobToSpec(aJob({ image: 'maas-collector:3.11.0' })),
+        enabled: false,
+      })
+    );
+    expect(getJob).toHaveBeenCalledWith('collect');
+  });
+
+  it('runs now the interval of a given date, with a note', async () => {
+    mocked(triggerJob).mockResolvedValue(aRun({ id: 13, state: 'queued' }));
+    renderAt(<Jobs />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Run now' }));
+    fireEvent.change(screen.getByLabelText(/a date in the interval/i), { target: { value: '2026-10-01T05:30:00Z' } });
+    fireEvent.change(screen.getByLabelText(/^note/i), { target: { value: 'missing interval' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+
+    await waitFor(() => expect(triggerJob).toHaveBeenCalledWith('collect', '2026-10-01T05:30:00Z', 'missing interval'));
   });
 });

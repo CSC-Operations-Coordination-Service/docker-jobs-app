@@ -57,6 +57,22 @@ describe('StringListEditor', () => {
     expect(value()).toEqual(['keep']);
   });
 
+  it('takes a pasted multi-line command, continuations and all', () => {
+    render(
+      <Holder<string[]>
+        initial={[]}
+        editor={(v, onChange) => <StringListEditor label="argument" value={v} onChange={onChange} paste />}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText('Paste a command line into arguments'), {
+      target: { value: 'python main.py \\\n  --start {{ data_interval_start | iso_ms }}' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Split into arguments' }));
+
+    expect(value()).toEqual(['python', 'main.py', '--start', '{{ data_interval_start | iso_ms }}']);
+  });
+
   it('adds and removes rows', () => {
     render(
       <Holder<string[]>

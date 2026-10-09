@@ -55,7 +55,7 @@ export function canEdit(): boolean {
 
 /**
  * A command line into arguments, the way a shell would split it -- spaces
- * separate, quotes group, a backslash escapes -- except that a Jinja
+ * separate, quotes group, a backslash escapes or continues a line -- except that a Jinja
  * {{ ... }} or {% ... %} is never split: `--start {{ data_interval_start | iso_ms }}`
  * is two arguments. Throws on an unclosed quote or template.
  */
@@ -112,6 +112,11 @@ export function splitCommandLine(text: string): string[] {
         throw new Error('unclosed "');
       }
       i += 1;
+    } else if (char === '\\' && text.slice(i + 1, i + 3) === '\r\n') {
+      // a line continued: nothing, like the shell
+      i += 3;
+    } else if (char === '\\' && text[i + 1] === '\n') {
+      i += 2;
     } else if (char === '\\' && i + 1 < text.length) {
       current += text[i + 1];
       started = true;

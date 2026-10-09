@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, IconButton, Input, Stack, Text } from '@grafana/ui';
+import { Button, IconButton, Input, Stack, Text, TextArea } from '@grafana/ui';
 
 import { splitCommandLine } from '../../utils';
 
@@ -52,7 +52,10 @@ export function StringListEditor({ label, value, onChange, paste = false }: Prop
       </div>
       {paste && (
         <Stack gap={1} alignItems="center">
-          <Input
+          {/* a TextArea: a single-line input would drop the newlines of a
+              command copied from a script, and leave its \ continuations as arguments */}
+          <TextArea
+            rows={2}
             aria-label={`Paste a command line into ${label}s`}
             placeholder='--start "{{ data_interval_start | iso_ms }}" --verbose'
             value={line}
