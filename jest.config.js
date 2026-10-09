@@ -8,7 +8,8 @@ module.exports = {
   // Jest configuration provided by Grafana scaffolding
   ...require('./.config/jest.config'),
   // @grafana/ui and @grafana/data 13 pull in packages that ship ESM only, which
-  // the scaffolded list (grafanaESModules) predates: transform them too.
+  // the scaffolded list (grafanaESModules) predates: transform them too. yaml's
+  // browser build -- what jsdom resolves -- is ESM as well.
   transformIgnorePatterns: [
     nodeModulesToTransform([
       ...grafanaESModules,
@@ -20,6 +21,7 @@ module.exports = {
       'memoize',
       'mimic-function',
       '@wojtekmaj/date-utils',
+      'yaml',
     ]),
   ],
 };

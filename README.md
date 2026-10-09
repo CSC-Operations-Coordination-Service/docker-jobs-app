@@ -7,11 +7,45 @@ Grafana's plugin proxy to the backend.
 
 | Page | Role | What it does |
 | --- | --- | --- |
-| Jobs (default) | Viewer | every job, its schedule, next run and newest run; Editors: **Run now** (the interval a date falls in -- one never run, say -- or the latest ended one, with a note), enable/disable, delete, **New job** |
+| Jobs (default) | Viewer | every job, its schedule, next run and newest run; **Export** (the jobs file); Editors: **Run now** (the interval a date falls in -- one never run, say -- or the latest ended one, with a note), enable/disable, delete, **New job**, **Import** (a jobs file) |
 | Job editor | Editor | `jobs/new`, `jobs/<name>/edit`: image, schedule, command one argument per row (with a *paste a command line* splitter that keeps `{{ ... }}` whole), env, params, retries, limits, networks, constraints, secrets, configs, mounts; **Preview** renders the command for an interval and lists the swarm objects a launch would miss |
 | Runs | Viewer | newest interval first, `?job=&state=` filters, paged; expand a run for its attempts — who and why, command, exit code, node, error, **Logs** in Explore — and, for Editors, **Rerun** (an ended run) or **Cancel run** (one still going), with a note |
 | Docker jobs overview | Viewer | bundled dashboard: last tick, Docker reachable, runs waiting/running, missing intervals, failed runs, data covered until, attempts by outcome, p95 duration |
 | Configuration | Admin | backend URL, API token, Loki datasource |
+
+## The jobs file
+
+**Export** saves the definitions of every job, by name, to `docker-jobs-<YYYYMMDD-HHmm>.yaml`:
+what the job editor sets, nothing the backend computes (next run, cursor, who changed it
+when). **Import** reads such a file -- or one written by hand, or JSON -- so jobs can be
+kept in git, reviewed, and copied from one Grafana to another:
+
+```yaml
+jobs:
+  - name: collect
+    image: 127.0.0.1:8085/maas-collector:3.10.1
+    schedule: "0 * * * *"
+    command: [maas_collector.rawdata.cli.odata, --replay-start-date, "{{ data_interval_start | iso_ms }}"]
+    retries: 2
+```
+
+A field left out takes the default of a new job -- except `schedule`, which must be written,
+and `start_date`, which an existing job keeps. A bare list of jobs is read too.
+
+Before anything is written, every job of the file is checked by the backend (`POST /preview`:
+the same rules as the editor) and compared with the stored one:
+
+| In the file | Imported |
+| --- | --- |
+| new | created; ticked by default |
+| changed | overwritten (PUT, the whole definition) if ticked; the fields that differ are listed |
+| unchanged | nothing to do |
+| invalid | no: the backend's reason, or a name the file holds twice |
+
+Warnings do not stop an import: the swarm secrets, configs and networks a launch would miss,
+and a new job with catch-up on and a `start_date` in the past, which runs every interval
+since. The ticked jobs are saved one at a time; the result says which were created, updated,
+or failed and why.
 
 ## How it reaches the backend
 

@@ -8,6 +8,7 @@ import {
   Column,
   ConfirmModal,
   Field,
+  FileUpload,
   InlineField,
   InlineSwitch,
   Input,
@@ -17,8 +18,21 @@ import {
   TextLink,
 } from '@grafana/ui';
 
-import { Job, Run, deleteJob, errorMessage, getJob, listJobs, listRuns, triggerJob, updateJob } from '../api';
+import {
+  Job,
+  JobCreate,
+  Run,
+  deleteJob,
+  errorMessage,
+  getJob,
+  listJobs,
+  listRuns,
+  triggerJob,
+  updateJob,
+} from '../api';
+import { ImportJobs, ImportResult } from '../components/ImportJobs/ImportJobs';
 import { ROUTES, prefixRoute } from '../constants';
+import { JOBS_FILE_ACCEPT, download, exportFileName, exportJobs, parseJobsFile, readText } from '../jobsFile';
 import { canEdit, formatDate, formatInterval, jobToSpec, stateColor } from '../utils';
 
 const REFRESH_MS = 15000;
@@ -46,6 +60,8 @@ export function Jobs() {
   const [pending, setPending] = useState<Pending>();
   const [runDate, setRunDate] = useState('');
   const [runNote, setRunNote] = useState('');
+  // the definitions of the file being imported
+  const [importing, setImporting] = useState<JobCreate[]>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,6 +118,39 @@ export function Jobs() {
       }),
     [act]
   );
+
+  const exportAll = () =>
+    act(async () => {
+      // the stored definitions, not the rows: they may be a refresh old
+      const jobs = await listJobs();
+      const fileName = exportFileName();
+      download(fileName, exportJobs(jobs));
+      return `${jobs.length} jobs exported to ${fileName}`;
+    });
+
+  const openFile = async (event: React.SyntheticEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    try {
+      setImporting(parseJobsFile(await readText(file)));
+      setActionError(undefined);
+    } catch (err) {
+      setActionError(`${file.name}: ${errorMessage(err)}`);
+    } finally {
+      // so that choosing the same file again, once fixed, reads it again
+      input.value = '';
+    }
+  };
+
+  const imported = (result: ImportResult) => {
+    setImporting(undefined);
+    setNotice(result.notice);
+    setActionError(result.error);
+    load();
+  };
 
   const ask = (action: Pending['action'], job: Row) => {
     setRunDate('');
@@ -212,11 +261,21 @@ export function Jobs() {
               Refresh
             </Button>
           </Stack>
-          {editable && (
-            <LinkButton href={prefixRoute(`${ROUTES.Jobs}/new`)} icon="plus">
-              New job
-            </LinkButton>
-          )}
+          <Stack gap={1} alignItems="center">
+            <Button variant="secondary" icon="download-alt" onClick={exportAll}>
+              Export
+            </Button>
+            {editable && (
+              <>
+                <FileUpload accept={JOBS_FILE_ACCEPT} onFileUpload={openFile}>
+                  Import
+                </FileUpload>
+                <LinkButton href={prefixRoute(`${ROUTES.Jobs}/new`)} icon="plus">
+                  New job
+                </LinkButton>
+              </>
+            )}
+          </Stack>
         </Stack>
 
         {loadError && (
@@ -237,6 +296,8 @@ export function Jobs() {
 
         <InteractiveTable columns={columns} data={rows} getRowId={(row: Row) => row.name} pageSize={50} />
       </Stack>
+
+      {importing && <ImportJobs definitions={importing} onDismiss={() => setImporting(undefined)} onDone={imported} />}
 
       <ConfirmModal
         isOpen={pending !== undefined}
