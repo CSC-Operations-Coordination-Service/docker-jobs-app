@@ -1,3 +1,71 @@
 # docker-jobs-app
 
-The Grafana app of docker-jobs-backend. Task 8 completes this README.
+Grafana app plugin `ocs-dockerjobs-app` ("Docker Jobs"), the UI of
+[docker-jobs-backend](../docker-jobs-backend/README.md), for **Grafana 13.2** and later
+(`grafanaDependency >=13.2.0`, React 19). Frontend only: every call goes through
+Grafana's plugin proxy to the backend.
+
+| Page | Role | What it does |
+| --- | --- | --- |
+| Jobs (default) | Viewer | every job, its schedule, next run and newest run; Editors: **Run now** (its latest ended interval), enable/disable, delete, **New job** |
+| Job editor | Editor | `jobs/new`, `jobs/<name>/edit`: image, schedule, command one argument per row (with a *paste a command line* splitter that keeps `{{ ... }}` whole), env, params, retries, limits, networks, constraints, secrets, configs, mounts; **Preview** renders the command for an interval and lists the swarm objects a launch would miss |
+| Runs | Viewer | newest interval first, `?job=&state=` filters, paged; expand a run for its attempts — command, exit code, node, error, **Logs** in Explore — and, for Editors, **Rerun** (an ended run) or **Cancel run** (one still going), with a note |
+| Docker jobs overview | Viewer | bundled dashboard: last tick, Docker reachable, runs waiting/running, missing intervals, failed runs, data covered until, attempts by outcome, p95 duration |
+| Configuration | Admin | backend URL, API token, Loki datasource |
+
+## How it reaches the backend
+
+Four proxy routes in [src/plugin.json](src/plugin.json), all on `api/*`, templated from
+the app's settings:
+
+| Method | Role | Forwarded to |
+| --- | --- | --- |
+| GET | Viewer | `<backendUrl>/api/*` |
+| POST, PUT, DELETE | Editor | `<backendUrl>/api/*` |
+
+Each adds `Authorization: Bearer <apiToken>` — the backend's `API_TOKEN`, kept in the
+app's `secureJsonData` — so only Grafana's proxy can call the backend. With
+`GF_DATAPROXY_SEND_USER_HEADER=true` the proxy also sets `X-Grafana-User`, overwriting any
+the browser sent: the backend records it on every job change, manual run, rerun and
+cancel. A Viewer reads everything and gets 403 on any change; the pages hide the actions
+they could not do.
+
+The attempts' **Logs** links open Explore on the configured Loki datasource with the
+attempt's `{swarm_stack, swarm_service}` selector, from a minute before its launch to a
+minute after its end.
+
+## Development
+
+Node 22 (see `.nvmrc`). The tooling under `.config/` is `@grafana/create-plugin`'s, copied
+from maas-dm-app with its lockfile.
+
+    npm ci
+    npm run dev                # rebuild dist/ on change
+    npm run test:ci            # jest
+    npm run typecheck && npm run lint
+    DOCKER_CONTEXT=default GRAFANA_PORT=13000 docker compose up    # http://localhost:13000, admin / admin
+
+The local Grafana mounts `dist/` and provisions the app against a backend on the host,
+port 18000, with `API_TOKEN=dev-token` (see
+[provisioning/plugins/apps.yaml](provisioning/plugins/apps.yaml) for the command), and a
+Loki on the host, port 3100.
+
+As in maas-dm-app, `build`/`dev` set `NODE_OPTIONS=--no-experimental-strip-types`,
+`jest.config.js` transforms the ESM-only packages of the 13.2 SDK, and `jest-setup.js`
+stubs `MessageChannel` (React 19) and a canvas `measureText` (`Combobox`).
+
+## Packaging and delivery
+
+    VERSION=0.1.0 scripts/package.sh       # -> ocs-dockerjobs-app-0.1.0.zip + .sha256
+
+The [Dockerfile](Dockerfile) builds and packages the plugin, then serves the zip from nginx
+on port 8080 (`/ocs-dockerjobs-app-<version>.zip`, `/ocs-dockerjobs-app.zip`, `/health`).
+docker-jobs-backend's stack runs it as the `app` service; the Grafana that runs the app
+installs it at startup with
+`GF_PLUGINS_PREINSTALL_SYNC=ocs-dockerjobs-app@<version>@http://docker-jobs_app:8080/ocs-dockerjobs-app-<version>.zip`
+(see that repository's `deploy/grafana/`). Unsigned by default:
+`GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=ocs-dockerjobs-app`. With
+`GRAFANA_ACCESS_POLICY_TOKEN` and `SIGN_ROOT_URLS`, `package.sh` signs it as a private
+plugin.
+
+CI: [.github/workflows/docker-jobs-app.yml](.github/workflows/docker-jobs-app.yml).

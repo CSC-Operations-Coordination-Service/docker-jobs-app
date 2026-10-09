@@ -1,0 +1,107 @@
+name: docker-jobs-app CI/CD
+
+# The Grafana app plugin, delivered as an nginx image serving the plugin zip
+# (Dockerfile; deployed by docker-jobs-backend's deploy/). Like maas-dm-app.yml:
+#   node-workflow.yml — npm ci -> lint -> build -> test
+#   (package)         — the plugin zip as a workflow artifact
+#   docker-build.yml  — the delivery image; its Dockerfile builds and packages
+#                       the plugin itself, so no artifact is handed over
+#
+# docker-build.yml is called directly rather than through node-workflow's
+# build-image: that path does not forward insecure-registry, which the plain-HTTP
+# Nexus Docker connector needs.
+#
+# Version: the release tag (x.y.z) on tags, package.json's version otherwise.
+# Signing: only when GRAFANA_ACCESS_POLICY_TOKEN and the SIGN_ROOT_URLS variable
+# exist; unsigned otherwise (Grafana must allow it).
+
+on:
+  push:
+    branches:
+      - "develop"
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    permissions:
+      contents: read
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/node-workflow.yml@develop
+    with:
+      working-directory: .
+      node-version: "22"
+      use-nexus-registry: true
+      run-tests: true
+      test-command: npm run test:ci
+    secrets: inherit
+
+  package:
+    needs: node
+    runs-on: self-hosted
+    container:
+      image: node:22
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Nexus npm registry
+        uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/actions/npm-context@develop
+        with:
+          registry-repo: npm-proxy
+          nexus-host: ${{ secrets.NEXUS_HOST }}
+          nexus-port: ${{ secrets.NEXUS_PORT }}
+          nexus-username: ${{ secrets.NEXUS_USERNAME }}
+          nexus-password: ${{ secrets.NEXUS_PASSWORD }}
+
+      - name: Install zip
+        run: apt-get update && apt-get install -y --no-install-recommends zip
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Package
+        env:
+          VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+          SIGN_ROOT_URLS: ${{ vars.SIGN_ROOT_URLS }}
+        run: ./scripts/package.sh
+
+      - name: Upload the plugin zip
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ocs-dockerjobs-app-zip
+          path: |
+            ocs-dockerjobs-app-*.zip
+            ocs-dockerjobs-app-*.zip.sha256
+          if-no-files-found: error
+
+      # This container runs as root, and a root-owned workspace breaks the next
+      # non-container checkout.
+      - name: Return workspace ownership to the runner user
+        if: always()
+        run: |
+          owner=$(stat -c '%u:%g' "$RUNNER_TEMP")
+          chown -R "$owner" "$GITHUB_WORKSPACE" || true
+
+  docker:
+    needs: node
+    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      packages: write
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/docker-build.yml@develop
+    with:
+      image-name: docker-jobs-app
+      context: .
+      dockerfile: Dockerfile
+      build-args: |
+        VERSION=${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+      mount-npm-registry: true
+      release: ${{ startsWith(github.ref, 'refs/tags/') }}
+      environment: ${{ startsWith(github.ref, 'refs/tags/') && 'prod' || 'dev' }}
+      insecure-registry: true
+    secrets: inherit

@@ -1,0 +1,7 @@
+.git/
+node_modules/
+dist/
+coverage/
+*.zip
+*.zip.sha256
+.eslintcache

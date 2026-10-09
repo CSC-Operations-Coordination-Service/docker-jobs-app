@@ -1,0 +1,23 @@
+# Local Grafana for developing the app:
+#   npm run dev            # rebuilds dist/ on change
+#   docker compose up      # Grafana on http://localhost:3000, admin / admin
+# The plugin is mounted from dist/, unsigned and in development mode; the
+# backend is expected on the host, port 18000 (provisioning/plugins/apps.yaml).
+#
+# On this workstation bare `docker` may point at a remote swarm: run with
+# DOCKER_CONTEXT=default.
+services:
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-13.2.0}
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: ocs-dockerjobs-app
+      GF_DEFAULT_APP_MODE: development
+      GF_DATAPROXY_SEND_USER_HEADER: "true"
+      GF_LOG_FILTERS: plugin.ocs-dockerjobs-app:debug
+    volumes:
+      - ./dist:/var/lib/grafana/plugins/ocs-dockerjobs-app:ro
+      - ./provisioning:/etc/grafana/provisioning:ro

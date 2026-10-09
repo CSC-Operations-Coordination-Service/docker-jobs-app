@@ -1,0 +1,17 @@
+# Local development only (docker-compose.yaml): the app talks to a backend
+# running on this machine, port 18000, with API_TOKEN=dev-token, e.g.
+#   cd ../docker-jobs-backend && API_TOKEN=dev-token DATABASE_URL=sqlite:///./dev.db LOCK_FILE=./dev.lock \
+#     SCHEDULER_ENABLED=false OTEL_SDK_DISABLED=true \
+#     .venv/bin/uvicorn --factory docker_jobs_backend.main:create_app --host 0.0.0.0 --port 18000
+# The swarm's provisioning is docker-jobs-backend's deploy/grafana/docker-jobs-app.yaml.
+apiVersion: 1
+
+apps:
+  - type: ocs-dockerjobs-app
+    org_id: 1
+    disabled: false
+    jsonData:
+      backendUrl: http://host.docker.internal:18000
+      lokiDatasourceUid: loki
+    secureJsonData:
+      apiToken: dev-token

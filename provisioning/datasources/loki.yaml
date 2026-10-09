@@ -1,0 +1,9 @@
+# Local development only: a Loki on the host, port 3100, for the attempts' Logs links.
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://host.docker.internal:3100
