@@ -1,0 +1,81 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "app",
+  "name": "Docker Jobs",
+  "id": "ocs-dockerjobs-app",
+  "backend": false,
+  "info": {
+    "keywords": ["app", "docker", "swarm", "cron", "jobs"],
+    "description": "Scheduled jobs on Docker Swarm: define them, follow their runs, rerun or cancel them",
+    "author": {
+      "name": "Serco - Space unit"
+    },
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "routes": [
+    {
+      "path": "api/*",
+      "method": "GET",
+      "reqRole": "Viewer",
+      "url": "{{ .JsonData.backendUrl }}/api",
+      "headers": [{ "name": "Authorization", "content": "Bearer {{ .SecureJsonData.apiToken }}" }]
+    },
+    {
+      "path": "api/*",
+      "method": "POST",
+      "reqRole": "Editor",
+      "url": "{{ .JsonData.backendUrl }}/api",
+      "headers": [{ "name": "Authorization", "content": "Bearer {{ .SecureJsonData.apiToken }}" }]
+    },
+    {
+      "path": "api/*",
+      "method": "PUT",
+      "reqRole": "Editor",
+      "url": "{{ .JsonData.backendUrl }}/api",
+      "headers": [{ "name": "Authorization", "content": "Bearer {{ .SecureJsonData.apiToken }}" }]
+    },
+    {
+      "path": "api/*",
+      "method": "DELETE",
+      "reqRole": "Editor",
+      "url": "{{ .JsonData.backendUrl }}/api",
+      "headers": [{ "name": "Authorization", "content": "Bearer {{ .SecureJsonData.apiToken }}" }]
+    }
+  ],
+  "includes": [
+    {
+      "type": "page",
+      "name": "Jobs",
+      "path": "/a/%PLUGIN_ID%/jobs",
+      "role": "Viewer",
+      "addToNav": true,
+      "defaultNav": true
+    },
+    {
+      "type": "page",
+      "name": "Runs",
+      "path": "/a/%PLUGIN_ID%/runs",
+      "role": "Viewer",
+      "addToNav": true,
+      "defaultNav": false
+    },
+    {
+      "type": "page",
+      "icon": "cog",
+      "name": "Configuration",
+      "path": "/plugins/%PLUGIN_ID%",
+      "role": "Admin",
+      "addToNav": true
+    }
+  ],
+  "dependencies": {
+    "grafanaDependency": ">=13.2.0",
+    "plugins": []
+  }
+}

@@ -1,0 +1,9 @@
+# Also what `npm run lint` skips (--ignore-path ./.gitignore).
+node_modules/
+dist/
+coverage/
+*.zip
+*.zip.sha256
+.eslintcache
+playwright-report/
+test-results/
