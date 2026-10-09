@@ -7,9 +7,9 @@ Grafana's plugin proxy to the backend.
 
 | Page | Role | What it does |
 | --- | --- | --- |
-| Jobs (default) | Viewer | every job, its schedule, next run and newest run; Editors: **Run now** (its latest ended interval), enable/disable, delete, **New job** |
+| Jobs (default) | Viewer | every job, its schedule, next run and newest run; Editors: **Run now** (the interval a date falls in -- one never run, say -- or the latest ended one, with a note), enable/disable, delete, **New job** |
 | Job editor | Editor | `jobs/new`, `jobs/<name>/edit`: image, schedule, command one argument per row (with a *paste a command line* splitter that keeps `{{ ... }}` whole), env, params, retries, limits, networks, constraints, secrets, configs, mounts; **Preview** renders the command for an interval and lists the swarm objects a launch would miss |
-| Runs | Viewer | newest interval first, `?job=&state=` filters, paged; expand a run for its attempts — command, exit code, node, error, **Logs** in Explore — and, for Editors, **Rerun** (an ended run) or **Cancel run** (one still going), with a note |
+| Runs | Viewer | newest interval first, `?job=&state=` filters, paged; expand a run for its attempts — who and why, command, exit code, node, error, **Logs** in Explore — and, for Editors, **Rerun** (an ended run) or **Cancel run** (one still going), with a note |
 | Docker jobs overview | Viewer | bundled dashboard: last tick, Docker reachable, runs waiting/running, missing intervals, failed runs, data covered until, attempts by outcome, p95 duration |
 | Configuration | Admin | backend URL, API token, Loki datasource |
 
