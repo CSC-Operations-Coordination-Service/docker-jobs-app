@@ -16,3 +16,8 @@ if (typeof globalThis.MessageChannel === 'undefined') {
   }
   globalThis.MessageChannel = MessageChannelStub;
 }
+
+// @grafana/ui's Combobox sizes itself with a canvas' measureText; the
+// scaffolded setup stubs getContext() with nothing, so give it a context that
+// measures something.
+HTMLCanvasElement.prototype.getContext = () => ({ measureText: (text) => ({ width: String(text).length * 8 }) });

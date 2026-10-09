@@ -8,6 +8,8 @@ import { AppSettings, type AppJsonData } from '../../settings';
 
 const Jobs = React.lazy(() => import('../../pages/Jobs'));
 const JobEditor = React.lazy(() => import('../../pages/JobEditor'));
+const Runs = React.lazy(() => import('../../pages/Runs'));
+const RunPage = React.lazy(() => import('../../pages/RunDetails'));
 
 function App({ meta }: AppRootProps<AppJsonData>) {
   if (!meta.jsonData?.backendUrl) {
@@ -24,6 +26,8 @@ function App({ meta }: AppRootProps<AppJsonData>) {
       <Routes>
         <Route path={`${ROUTES.Jobs}/new`} element={<JobEditor />} />
         <Route path={`${ROUTES.Jobs}/:name/edit`} element={<JobEditor />} />
+        <Route path={ROUTES.Runs} element={<Runs />} />
+        <Route path={`${ROUTES.Runs}/:id`} element={<RunPage />} />
         {/* Default page */}
         <Route path="*" element={<Jobs />} />
       </Routes>
