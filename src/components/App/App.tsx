@@ -1,9 +1,11 @@
 import React from 'react';
-import { Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { AppRootProps } from '@grafana/data';
 import { Alert } from '@grafana/ui';
 
 import { AppSettings, type AppJsonData } from '../../settings';
+
+const Jobs = React.lazy(() => import('../../pages/Jobs'));
 
 function App({ meta }: AppRootProps<AppJsonData>) {
   if (!meta.jsonData?.backendUrl) {
@@ -17,8 +19,10 @@ function App({ meta }: AppRootProps<AppJsonData>) {
 
   return (
     <AppSettings.Provider value={meta.jsonData}>
-      {/* the pages' routes come with the pages */}
-      <Routes />
+      <Routes>
+        {/* Default page */}
+        <Route path="*" element={<Jobs />} />
+      </Routes>
     </AppSettings.Provider>
   );
 }
