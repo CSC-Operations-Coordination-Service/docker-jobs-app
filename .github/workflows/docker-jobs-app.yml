@@ -31,7 +31,7 @@ jobs:
   node:
     permissions:
       contents: read
-    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/node-workflow.yml@develop
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/node-workflow.yml@ci/npm-registry
     with:
       working-directory: .
       node-version: "22"
@@ -93,7 +93,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/docker-build.yml@develop
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/docker-build.yml@ci/npm-registry
     with:
       image-name: docker-jobs-app
       context: .
