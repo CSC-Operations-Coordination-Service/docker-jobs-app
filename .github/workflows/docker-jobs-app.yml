@@ -31,6 +31,10 @@ jobs:
   node:
     permissions:
       contents: read
+      # node-workflow.yml declares its optional image-build job with
+      # packages: write. GitHub checks nested permissions before the run
+      # starts, even for a job that is then skipped, so the caller must grant it.
+      packages: write
     uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/node-workflow.yml@ci/npm-registry
     with:
       working-directory: .
