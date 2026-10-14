@@ -40,6 +40,15 @@ jobs:
       working-directory: .
       node-version: "22.23.3"
       use-nexus-registry: true
+      # TEMPORARY (2026-10-14): CI skips the optional @swc/core-linux-x64-gnu
+      # ("Failed to load native binding" at build). Install verbosely and
+      # publish npm's lines about it as warning annotations, which the API
+      # serves without a login. Revert to the default once found.
+      install-command: |
+        npm ci --loglevel=verbose > npm-ci.log 2>&1 || { tail -40 npm-ci.log; exit 1; }
+        grep -i -E 'core-linux-x64|reify failed optional|EBADPLATFORM|ENOSPC|EINTEGRITY|E401|E403|E404|ETIMEDOUT|ECONNRESET|EAI_AGAIN' npm-ci.log | head -25 | sed 's/^/::warning title=npm ci::/' || true
+        node -p "'libc: ' + JSON.stringify(process.report.getReport().header.glibcVersionRuntime) + ', arch: ' + process.arch + ', npm: ' + require('child_process').execSync('npm --version').toString().trim()" | sed 's/^/::warning title=platform::/'
+        ls node_modules/@swc | sed 's/^/::warning title=installed @swc::/'
       run-tests: true
       test-command: npm run test:ci
     secrets: inherit
