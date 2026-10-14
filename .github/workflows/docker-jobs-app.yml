@@ -45,10 +45,11 @@ jobs:
       # publish npm's lines about it as warning annotations, which the API
       # serves without a login. Revert to the default once found.
       install-command: |
-        npm ci --loglevel=verbose > npm-ci.log 2>&1 || { tail -40 npm-ci.log; exit 1; }
-        grep -i -E 'core-linux-x64|reify failed optional|EBADPLATFORM|ENOSPC|EINTEGRITY|E401|E403|E404|ETIMEDOUT|ECONNRESET|EAI_AGAIN' npm-ci.log | head -25 | sed 's/^/::warning title=npm ci::/' || true
-        node -p "'libc: ' + JSON.stringify(process.report.getReport().header.glibcVersionRuntime) + ', arch: ' + process.arch + ', npm: ' + require('child_process').execSync('npm --version').toString().trim()" | sed 's/^/::warning title=platform::/'
-        ls node_modules/@swc | sed 's/^/::warning title=installed @swc::/'
+        npm ci > npm-ci.log 2>&1 || { tail -40 npm-ci.log; exit 1; }
+        echo "::notice title=installed @swc::$(ls node_modules/@swc | tr '\n' ' ')"
+        node -e "try { require('@swc/core'); console.log('::notice title=swc::native binding loaded OK') } catch (e) { const c = e.cause || []; (Array.isArray(c) ? c : [c]).concat([e]).slice(0, 8).forEach(x => console.log('::notice title=swc load error::' + String((x && x.message) || x).replace(/\n/g, ' | ').slice(0, 900))) }"
+        node -p "'::notice title=platform::libc ' + process.report.getReport().header.glibcVersionRuntime + ', arch ' + process.arch"
+        echo "::notice title=mount::$(grep -E ' /__w ' /proc/mounts | head -1)"
       run-tests: true
       test-command: npm run test:ci
     secrets: inherit
