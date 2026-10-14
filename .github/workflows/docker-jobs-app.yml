@@ -40,16 +40,13 @@ jobs:
       working-directory: .
       node-version: "22.23.3"
       use-nexus-registry: true
-      # TEMPORARY (2026-10-14): CI skips the optional @swc/core-linux-x64-gnu
-      # ("Failed to load native binding" at build). Install verbosely and
-      # publish npm's lines about it as warning annotations, which the API
-      # serves without a login. Revert to the default once found.
-      install-command: |
-        npm ci > npm-ci.log 2>&1 || { tail -40 npm-ci.log; exit 1; }
-        echo "::notice title=installed @swc::$(ls node_modules/@swc | tr '\n' ' ')"
-        node -e "try { require('@swc/core'); console.log('::notice title=swc::native binding loaded OK') } catch (e) { const c = e.cause || []; (Array.isArray(c) ? c : [c]).concat([e]).slice(0, 8).forEach(x => console.log('::notice title=swc load error::' + String((x && x.message) || x).replace(/\n/g, ' | ').slice(0, 900))) }"
-        node -p "'::notice title=platform::libc ' + process.report.getReport().header.glibcVersionRuntime + ', arch ' + process.arch"
-        echo "::notice title=mount::$(grep -E ' /__w ' /proc/mounts | head -1)"
+      # @swc/core materialises its native binding under $HOME/.cache and
+      # refuses a cache root whose parent another user can write: in a
+      # container job HOME is /github/home, mounted from the runner, so the
+      # build failed with "Failed to load native binding". Root's own cache
+      # passes that check (CI log, 2026-10-14).
+      build-env: |
+        SWC_NATIVE_BINDING_CACHE=/root/.cache/swc
       run-tests: true
       test-command: npm run test:ci
     secrets: inherit
@@ -59,6 +56,9 @@ jobs:
     runs-on: self-hosted
     container:
       image: node:22.23.3
+    env:
+      # same reason as build-env in the node job above
+      SWC_NATIVE_BINDING_CACHE: /root/.cache/swc
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
