@@ -13,7 +13,7 @@
 #
 # In CI the npm registry is the Nexus proxy, passed as the `npmrc` secret by
 # docker-build.yml's mount-npm-registry; without it npm uses the public registry.
-ARG NODE_VERSION=22
+ARG NODE_VERSION=22.23.3
 
 FROM node:${NODE_VERSION}-bookworm-slim AS build
 

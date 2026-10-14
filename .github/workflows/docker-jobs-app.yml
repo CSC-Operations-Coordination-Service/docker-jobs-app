@@ -38,7 +38,7 @@ jobs:
     uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/node-workflow.yml@ci/npm-registry
     with:
       working-directory: .
-      node-version: "22"
+      node-version: "22.23.3"
       use-nexus-registry: true
       run-tests: true
       test-command: npm run test:ci
@@ -48,7 +48,7 @@ jobs:
     needs: node
     runs-on: self-hosted
     container:
-      image: node:22
+      image: node:22.23.3
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
