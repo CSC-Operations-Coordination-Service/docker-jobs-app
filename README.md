@@ -92,7 +92,7 @@ stubs `MessageChannel` (React 19) and a canvas `measureText` (`Combobox`).
 
     VERSION=0.1.0 scripts/package.sh       # -> ocs-dockerjobs-app-0.1.0.zip + .sha256
 
-The [Dockerfile](Dockerfile) builds and packages the plugin, then serves the zip from nginx
+The [Dockerfile](Dockerfile) serves the plugin zip that `scripts/package.sh` built (in CI, the `package` job's artifact in `release/`) from nginx
 on port 8080 (`/ocs-dockerjobs-app-<version>.zip`, `/ocs-dockerjobs-app.zip`, `/health`).
 docker-jobs-backend's stack runs it as the `app` service; the Grafana that runs the app
 installs it at startup with
