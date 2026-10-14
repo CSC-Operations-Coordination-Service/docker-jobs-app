@@ -40,10 +40,6 @@ jobs:
       working-directory: .
       node-version: "22.23.3"
       use-nexus-registry: true
-      # TEMPORARY (2026-10-14): verbose, to log why npm skips the optional
-      # @swc/core-linux-x64-gnu in CI (the build then fails with "Failed to
-      # load native binding"). Revert to the default once found.
-      install-command: npm ci --loglevel=verbose
       run-tests: true
       test-command: npm run test:ci
     secrets: inherit
