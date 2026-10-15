@@ -114,6 +114,23 @@ describe('exploreUrl', () => {
     const url = exploreUrl('loki-uid', '{}', '2026-10-09T01:00:00Z', null);
     expect(JSON.parse(new URLSearchParams(url.split('?')[1]).get('panes')!).logs.range.to).toBe('now');
   });
+
+  describe('under a sub-path', () => {
+    const appSubUrl = config.appSubUrl;
+    afterEach(() => {
+      config.appSubUrl = appSubUrl;
+    });
+
+    it.each(['/grafana', '/grafana/'])('starts with Grafana\'s sub-path (%s)', (subPath) => {
+      config.appSubUrl = subPath;
+      expect(exploreUrl('loki-uid', '{}').startsWith('/grafana/explore?schemaVersion=1&panes=')).toBe(true);
+    });
+
+    it('starts at the root without one', () => {
+      config.appSubUrl = '';
+      expect(exploreUrl('loki-uid', '{}').startsWith('/explore?')).toBe(true);
+    });
+  });
 });
 
 describe('jobToSpec', () => {

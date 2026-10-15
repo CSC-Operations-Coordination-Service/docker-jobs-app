@@ -133,7 +133,11 @@ export function splitCommandLine(text: string): string[] {
   return args;
 }
 
-/** Grafana Explore on a Loki selector, from a little before start to a little after end (or now). */
+/**
+ * Grafana Explore on a Loki selector, from a little before start to a little after end (or now).
+ * Under Grafana's sub-path, when it is served under one (root_url .../grafana/): the link is an
+ * external one, which nothing else prefixes.
+ */
 export function exploreUrl(
   datasourceUid: string,
   selector: string,
@@ -150,7 +154,8 @@ export function exploreUrl(
       range: { from, to },
     },
   };
-  return `/explore?schemaVersion=1&panes=${encodeURIComponent(JSON.stringify(panes))}`;
+  const subPath = (config.appSubUrl ?? '').replace(/\/+$/, '');
+  return `${subPath}/explore?schemaVersion=1&panes=${encodeURIComponent(JSON.stringify(panes))}`;
 }
 
 /** A new job, with the backend's defaults. */
