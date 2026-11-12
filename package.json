@@ -1,6 +1,6 @@
 {
   "name": "docker-jobs-app",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Docker Jobs: the Grafana app of docker-jobs-backend -- jobs, runs, reruns, cancels",
   "scripts": {
     "build": "NODE_OPTIONS=--no-experimental-strip-types webpack -c ./.config/webpack/webpack.config.ts --env production",

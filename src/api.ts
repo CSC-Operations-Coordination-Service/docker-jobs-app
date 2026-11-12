@@ -51,6 +51,8 @@ export interface JobSpec {
   secrets: SecretRef[];
   configs: ConfigRef[];
   mounts: MountSpec[];
+  /** the container's user, as docker run --user takes it; empty: the image's */
+  user: string;
   cpu_limit: number | null;
   memory_limit_mb: number | null;
 }

@@ -182,6 +182,7 @@ export function emptyJob(): JobCreate {
     secrets: [],
     configs: [],
     mounts: [],
+    user: '',
     cpu_limit: null,
     memory_limit_mb: null,
   };
@@ -210,6 +211,7 @@ export function jobToSpec(job: Job): JobSpec {
     secrets: job.secrets,
     configs: job.configs,
     mounts: job.mounts,
+    user: job.user,
     cpu_limit: job.cpu_limit,
     memory_limit_mb: job.memory_limit_mb,
   };
