@@ -90,6 +90,21 @@ describe('JobEditor', () => {
     );
   });
 
+  it('keeps the user of a job it edits, and changes it', async () => {
+    mocked(getJob).mockResolvedValue(aJob({ user: '100' }));
+    mocked(updateJob).mockResolvedValue(aJob({ user: '100:101' }));
+    renderAt(<JobEditor />, '/jobs/collect/edit', '/jobs/:name/edit');
+
+    const user = await screen.findByLabelText(/^user/i);
+    expect(user).toHaveValue('100');
+    fireEvent.change(user, { target: { value: ' 100:101 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(updateJob).toHaveBeenCalledWith('collect', { ...jobToSpec(aJob()), user: '100:101' })
+    );
+  });
+
   it('previews the rendered command and what a launch would miss', async () => {
     mocked(previewJob).mockResolvedValue({
       data_interval_start: '2026-10-09T00:00:00Z',

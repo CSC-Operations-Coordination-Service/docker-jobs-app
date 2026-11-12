@@ -38,6 +38,7 @@ const NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/;
 const SECRET_FIELDS: Array<RowField<SecretRef>> = [
   { key: 'source', label: 'secret', placeholder: 'swarm secret name', width: 40 },
   { key: 'target', label: 'file', placeholder: '/run/secrets/<file>, the name if empty', width: 40 },
+  { key: 'uid', label: 'uid', placeholder: '10001', width: 10 },
 ];
 const CONFIG_FIELDS: Array<RowField<ConfigRef>> = [
   { key: 'source', label: 'config', placeholder: 'swarm config name', width: 40 },
@@ -304,13 +305,24 @@ export function JobEditor() {
         </FieldSet>
 
         <FieldSet label="Swarm">
+          <Field
+            label="User"
+            description="As docker run --user: 100, 100:101 or a name. Empty: the image's USER"
+          >
+            <Input
+              id="job-user"
+              width={20}
+              value={form.user}
+              onChange={(event) => set('user', event.currentTarget.value.trim())}
+            />
+          </Field>
           <Field label="Networks" description="Overlay networks, by name: a stack's are <stack>_<network>">
             <TagsInput tags={form.networks} onChange={(networks) => set('networks', networks)} />
           </Field>
           <Field label="Placement constraints" description="e.g. node.labels.role == maas">
             <TagsInput tags={form.constraints} onChange={(constraints) => set('constraints', constraints)} />
           </Field>
-          <Field label="Secrets" description="Mounted read-only for uid 10001">
+          <Field label="Secrets" description="Mounted read-only (0400) for their uid: the job's user must match">
             <RowsEditor
               label="secret"
               rows={form.secrets}

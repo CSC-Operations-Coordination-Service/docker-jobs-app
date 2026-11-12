@@ -144,6 +144,10 @@ describe('jobToSpec', () => {
     expect(spec.command).toEqual(['--start', '{{ data_interval_start | iso_ms }}']);
     expect(spec.start_date).toBe('2026-10-09T00:00:00Z');
   });
+
+  it("keeps the user: a PUT without it would reset it to the image's", () => {
+    expect(jobToSpec(aJob({ user: '100' })).user).toBe('100');
+  });
 });
 
 describe('canEdit', () => {
